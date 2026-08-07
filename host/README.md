@@ -1,5 +1,7 @@
 # Host tools
 
+[中文文档](README.zh-CN.md)
+
 The `chronopipe` Python package is a zero-runtime-dependency toolbox for CPB1 evidence.
 It targets Python 3.9 or newer.
 

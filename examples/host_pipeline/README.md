@@ -1,5 +1,7 @@
 # Host pipeline example
 
+[中文文档](README.zh-CN.md)
+
 This example runs the portable C99 runtime on synthetic eight-channel input. It branches
 the raw stream into quantized evidence and a FIR-decimated processing path, then produces
 moving means, overlapping windows, spectra, and peak-frequency features.

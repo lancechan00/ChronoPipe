@@ -1,5 +1,7 @@
 # ChronoPipe
 
+[中文文档](README.zh-CN.md)
+
 ChronoPipe is an embedded-first time-series processing and algorithm evidence pipeline.
 It connects acquisition, deterministic transforms, windowed algorithms, bounded
 recording, live streaming, reliable batch upload, and host replay through one

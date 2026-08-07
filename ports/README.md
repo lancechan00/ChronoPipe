@@ -1,5 +1,7 @@
 # Platform ports
 
+[中文文档](README.zh-CN.md)
+
 ChronoPipe core contains no operating-system, socket, credential, or device-driver
 code. A platform integration supplies:
 
