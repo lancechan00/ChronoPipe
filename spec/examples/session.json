@@ -1,0 +1,9 @@
+{
+  "session_id": 1,
+  "device_label": "reference-device",
+  "build_id": "example-0.1.0",
+  "contract": "chronopipe/1.0.0",
+  "contract_fingerprint": "0000000000000000",
+  "graph_hash": "0000000000000000",
+  "monotonic_start_us": 0
+}

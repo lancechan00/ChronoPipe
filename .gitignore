@@ -1,0 +1,46 @@
+# Builds
+build/
+build-*/
+dist-wheel/
+_install/
+out/
+dist/
+*.egg-info/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# C/CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.exe
+
+# ESP-IDF
+sdkconfig
+sdkconfig.old
+managed_components/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Generated evidence
+*.cpb
+*.jsonl
+*.csv

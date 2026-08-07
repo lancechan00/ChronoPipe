@@ -1,0 +1,40 @@
+contract:
+  name: chronopipe
+  version: 1.0.0
+  byte_order: little
+  time_unit: us
+
+dtypes:
+  f32: {id: 1, bytes: 4, semantics: ieee754-binary32}
+  i16: {id: 2, bytes: 2, semantics: twos-complement}
+  u16: {id: 3, bytes: 2, semantics: unsigned}
+  i32: {id: 4, bytes: 4, semantics: twos-complement}
+  u32: {id: 5, bytes: 4, semantics: unsigned}
+
+quality_flags:
+  discontinuity: 0x0001
+  late: 0x0002
+  non_finite: 0x0004
+  saturated: 0x0008
+  derived_from_gap: 0x0010
+  recovered: 0x0020
+
+events:
+  sequence_gap: 1
+  late_frame: 2
+  non_finite: 3
+  saturation: 4
+  buffer_overflow: 5
+  recorder_stopped: 6
+  algorithm_reset: 7
+  config_changed: 8
+  transport_failed: 9
+  store_recovered: 10
+  time_mapping: 11
+
+limits:
+  max_streams: 32
+  max_stages: 64
+  max_channels: 512
+  max_graph_depth: 32
+  max_name_bytes: 63

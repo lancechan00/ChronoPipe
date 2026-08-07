@@ -1,0 +1,22 @@
+add_executable(chronopipe_tests test_chronopipe.c)
+target_link_libraries(chronopipe_tests PRIVATE ChronoPipe::chronopipe)
+target_compile_features(chronopipe_tests PRIVATE c_std_99)
+
+if(MSVC)
+  target_compile_options(chronopipe_tests PRIVATE /W4 /WX)
+else()
+  target_compile_options(chronopipe_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
+add_test(NAME chronopipe_tests COMMAND chronopipe_tests)
+
+add_executable(chronopipe_stress stress_hour.c)
+target_link_libraries(chronopipe_stress PRIVATE ChronoPipe::chronopipe)
+target_compile_features(chronopipe_stress PRIVATE c_std_99)
+if(MSVC)
+  target_compile_options(chronopipe_stress PRIVATE /W4 /WX)
+else()
+  target_compile_options(chronopipe_stress PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+add_test(NAME chronopipe_stress COMMAND chronopipe_stress)
+set_tests_properties(chronopipe_stress PROPERTIES LABELS "stress")

@@ -1,0 +1,26 @@
+{
+  "schema_id": 1,
+  "stream_id": 1,
+  "name": "raw_input",
+  "dtype": "f32",
+  "layout": "sample-major",
+  "channel_count": 8,
+  "logical_shape": [8],
+  "period_num_us": 10000,
+  "period_den": 1,
+  "producer": {
+    "stage_id": 0,
+    "version": "source",
+    "config_hash": "0000000000000000"
+  },
+  "channels": [
+    {"name": "low_0", "unit": "V", "physical_min": 0.0, "physical_max": 3.3, "scale": 1.0, "offset": 0.0},
+    {"name": "low_1", "unit": "V", "physical_min": 0.0, "physical_max": 3.3, "scale": 1.0, "offset": 0.0},
+    {"name": "low_2", "unit": "V", "physical_min": 0.0, "physical_max": 3.3, "scale": 1.0, "offset": 0.0},
+    {"name": "low_3", "unit": "V", "physical_min": 0.0, "physical_max": 3.3, "scale": 1.0, "offset": 0.0},
+    {"name": "wide_0", "unit": "count", "physical_min": 0.0, "physical_max": 91000.0, "scale": 1.0, "offset": 0.0},
+    {"name": "wide_1", "unit": "count", "physical_min": 0.0, "physical_max": 91000.0, "scale": 1.0, "offset": 0.0},
+    {"name": "wide_2", "unit": "count", "physical_min": 0.0, "physical_max": 91000.0, "scale": 1.0, "offset": 0.0},
+    {"name": "wide_3", "unit": "count", "physical_min": 0.0, "physical_max": 91000.0, "scale": 1.0, "offset": 0.0}
+  ]
+}
