@@ -9,6 +9,7 @@ extern "C" {
 
 typedef struct {
     uint64_t session_id;
+    uint64_t time_origin_us;
     const cp_stream_desc_t *stream;
     uint16_t samples_per_block;
     uint32_t first_block_seq;
@@ -19,12 +20,20 @@ typedef struct {
     cp_store_t store;
     uint8_t *record_buffer;
     size_t record_capacity;
-    cp_cpb1_data_header_t header;
+    size_t payload_offset;
     uint32_t next_block_seq;
     uint32_t expected_frame_seq;
+    uint32_t first_sample_seq;
+    uint32_t quality_flags;
+    uint32_t period_num_us;
+    uint32_t period_den;
+    uint64_t block_t0_us;
+    uint64_t time_origin_us;
+    cp_lineage_t lineage;
     uint16_t buffered_samples;
     bool have_frame_seq;
     bool active;
+    bool wide;
 } cp_recorder_t;
 
 cp_status_t cp_recorder_init(cp_recorder_t *recorder,

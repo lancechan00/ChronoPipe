@@ -37,7 +37,7 @@ static cp_status_t flash_read_record(cp_flash_store_t *store,
     if (status != CP_OK) {
         return status;
     }
-    status = cp_cpb1_validate_record(store->read_buffer, length);
+    status = cp_evidence_validate_record(store->read_buffer, length);
     if (status != CP_OK) {
         return status;
     }
@@ -63,7 +63,7 @@ static cp_status_t flash_append(void *ctx,
     if (store->stopped) {
         return CP_ESTATE;
     }
-    status = cp_cpb1_validate_record(data, bytes);
+    status = cp_evidence_validate_record(data, bytes);
     if (status != CP_OK) {
         return status;
     }

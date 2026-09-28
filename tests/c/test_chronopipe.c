@@ -88,7 +88,7 @@ static int test_recorder(void) {
     cp_recorder_config_t config;
     cp_recorder_t recorder;
     cp_block_view_t block;
-    cp_cpb1_data_view_t decoded;
+    cp_cpb2_compact_view_t decoded;
     uint32_t seq;
     memset(&stream, 0, sizeof(stream));
     stream.id = 1u; stream.schema_id = 1u; stream.name = "raw";
@@ -97,7 +97,7 @@ static int test_recorder(void) {
     CHECK(cp_ram_store_init(&ram, memory, sizeof(memory), 128u, 2u,
                             CP_OVERFLOW_DROP_OLDEST) == CP_OK);
     store.ops = &cp_ram_store_ops; store.ctx = &ram;
-    config.session_id = 9u; config.stream = &stream;
+    config.session_id = 9u; config.time_origin_us = 0u; config.stream = &stream;
     config.samples_per_block = 4u; config.first_block_seq = 100u;
     CHECK(cp_recorder_init(&recorder, &config, store,
                            record_buffer, sizeof(record_buffer)) == CP_OK);
@@ -114,11 +114,161 @@ static int test_recorder(void) {
     CHECK(cp_recorder_flush(&recorder) == CP_OK);
     CHECK(ram.count == 2u);
     CHECK(store.ops->read(store.ctx, 100u, &block) == CP_OK);
-    CHECK(cp_cpb1_data_decode(block.data, block.bytes, &decoded) == CP_OK);
+    CHECK(block.bytes == CP_CPB2_COMPACT_HEADER_BYTES + 4u * sizeof(float));
+    CHECK(cp_cpb2_compact_decode(block.data, block.bytes, &decoded) == CP_OK);
     CHECK(decoded.header.sample_count == 4u && decoded.header.first_sample_seq == 0u);
     CHECK(store.ops->read(store.ctx, 101u, &block) == CP_OK);
-    CHECK(cp_cpb1_data_decode(block.data, block.bytes, &decoded) == CP_OK);
+    CHECK(cp_cpb2_compact_decode(block.data, block.bytes, &decoded) == CP_OK);
     CHECK(decoded.header.sample_count == 2u && decoded.header.first_sample_seq == 4u);
+    return 0;
+}
+
+static int test_cpb2_bounds(void) {
+    uint8_t record[64];
+    cp_cpb2_compact_header_t header;
+    cp_cpb2_compact_view_t view;
+    cp_cpb2_wide_header_t wide;
+    cp_cpb2_wide_view_t wide_view;
+    uint8_t wide_record[256];
+    float payload[17];
+    size_t written = 0u;
+    size_t record_bytes = 0u;
+    unsigned i;
+    memset(&header, 0, sizeof(header));
+    header.stream_id = 1u;
+    header.dtype = CP_DTYPE_F32;
+    header.channel_count = 1u;
+    header.sample_count = 2u;
+    header.block_seq = 3u;
+    header.first_sample_seq = 6u;
+    payload[0] = 1.25f;
+    payload[1] = 2.5f;
+    CHECK(cp_cpb2_compact_record_bytes(2u, 1u, CP_DTYPE_F32, &record_bytes) == CP_OK);
+    CHECK(record_bytes == CP_CPB2_COMPACT_HEADER_BYTES + sizeof(float) * 2u);
+    CHECK(cp_cpb2_compact_encode(&header, payload, record, sizeof(record), &written) == CP_OK);
+    CHECK(written == record_bytes);
+    CHECK(record[0] == 0x0bu && record[1] == 0x01u && record[2] == 0x00u);
+    CHECK(record[3] == 2u && record[4] == 0u && record[5] == 3u);
+    CHECK(cp_cpb2_compact_decode(record, written, &view) == CP_OK);
+    CHECK(view.header.block_seq == 3u && view.header.first_sample_seq == 6u);
+    CHECK(view.header.channel_count == 1u && view.header.stream_id == 1u);
+    record[written - 1u] ^= 1u;
+    CHECK(cp_cpb2_compact_decode(record, written, &view) == CP_ECRC);
+    header.channel_count = 17u;
+    CHECK(cp_cpb2_compact_encode(&header, payload, record, sizeof(record), &written) == CP_EBOUNDS);
+    header.channel_count = 1u;
+    header.stream_id = 32u;
+    CHECK(cp_cpb2_compact_encode(&header, payload, record, sizeof(record), &written) == CP_EBOUNDS);
+    header.stream_id = 1u;
+    header.sample_count = 0u;
+    CHECK(cp_cpb2_compact_encode(&header, payload, record, sizeof(record), &written) == CP_EINVAL);
+    header.sample_count = 65536u;
+    CHECK(cp_cpb2_compact_encode(&header, payload, record, sizeof(record), &written) == CP_EBOUNDS);
+    header.sample_count = 1u;
+    header.dtype = 0u;
+    CHECK(cp_cpb2_compact_encode(&header, payload, record, sizeof(record), &written) == CP_EINVAL);
+    memset(&wide, 0, sizeof(wide));
+    wide.stream_id = 32u;
+    wide.schema_id = 9u;
+    wide.block_seq = 4u;
+    wide.first_sample_seq = 1u;
+    wide.t0_us = 50u;
+    wide.period_num_us = 0u;
+    wide.period_den = 1u;
+    wide.sample_count = 1u;
+    wide.channel_count = 17u;
+    wide.dtype = CP_DTYPE_F32;
+    wide.payload_bytes = sizeof(payload);
+    wide.input_stream_id = 2u;
+    wide.input_first_seq = 8u;
+    wide.input_last_seq = 8u;
+    for (i = 0u; i < 17u; ++i) payload[i] = (float)i;
+    CHECK(cp_cpb2_wide_encode(&wide, payload, wide_record, sizeof(wide_record), &written) == CP_OK);
+    CHECK(cp_cpb2_wide_decode(wide_record, written, &wide_view) == CP_OK);
+    CHECK(wide_view.header.channel_count == 17u && wide_view.header.stream_id == 32u);
+    CHECK(wide_view.header.t0_us == 50u && wide_view.header.input_last_seq == 8u);
+    CHECK(cp_evidence_validate_record(wide_record, written) == CP_OK);
+    return 0;
+}
+
+static int test_recorder_time_and_wide(void) {
+    uint8_t memory[4u * 256u];
+    uint8_t record_buffer[256];
+    cp_ram_store_t ram;
+    cp_store_t store;
+    cp_stream_desc_t stream;
+    cp_recorder_config_t config;
+    cp_recorder_t recorder;
+    cp_block_view_t block;
+    cp_cpb2_compact_view_t compact;
+    cp_cpb2_event_t event;
+    cp_cpb2_wide_view_t wide;
+    float row[17];
+    uint32_t seq;
+    memset(&stream, 0, sizeof(stream));
+    stream.id = 1u; stream.schema_id = 1u; stream.name = "raw";
+    stream.dtype = CP_DTYPE_F32; stream.channel_count = 1u;
+    stream.period_num_us = 10000u; stream.period_den = 1u;
+    CHECK(cp_ram_store_init(&ram, memory, sizeof(memory), 256u, 4u,
+                            CP_OVERFLOW_DROP_OLDEST) == CP_OK);
+    store.ops = &cp_ram_store_ops; store.ctx = &ram;
+    memset(&config, 0, sizeof(config));
+    config.session_id = 9u; config.stream = &stream;
+    config.samples_per_block = 4u; config.first_block_seq = 100u;
+    CHECK(cp_recorder_init(&recorder, &config, store, record_buffer, sizeof(record_buffer)) == CP_OK);
+    for (seq = 0u; seq < 3u; ++seq) {
+        float value = (float)seq;
+        cp_frame_t frame;
+        memset(&frame, 0, sizeof(frame));
+        frame.stream_id = 1u; frame.seq = seq; frame.event_time_us = (uint64_t)seq * 10000u;
+        frame.period_num_us = 10000u; frame.period_den = 1u;
+        frame.dtype = CP_DTYPE_F32; frame.channel_count = 1u; frame.sample_count = 1u;
+        frame.data = &value; frame.data_bytes = sizeof(value);
+        CHECK(cp_recorder_append(&recorder, &frame) == CP_OK);
+    }
+    {
+        float value = 3.0f;
+        cp_frame_t frame;
+        memset(&frame, 0, sizeof(frame));
+        frame.stream_id = 1u; frame.seq = 3u; frame.event_time_us = 100000u;
+        frame.period_num_us = 10000u; frame.period_den = 1u;
+        frame.dtype = CP_DTYPE_F32; frame.channel_count = 1u; frame.sample_count = 1u;
+        frame.data = &value; frame.data_bytes = sizeof(value);
+        CHECK(cp_recorder_append(&recorder, &frame) == CP_OK);
+    }
+    CHECK(cp_recorder_flush(&recorder) == CP_OK);
+    CHECK(store.ops->read(store.ctx, 100u, &block) == CP_OK);
+    CHECK(cp_cpb2_compact_decode(block.data, block.bytes, &compact) == CP_OK);
+    CHECK(compact.header.sample_count == 3u && compact.header.first_sample_seq == 0u);
+    CHECK(store.ops->read(store.ctx, 101u, &block) == CP_OK);
+    CHECK(cp_cpb2_event_decode(block.data, block.bytes, &event) == CP_OK);
+    CHECK(event.type == CP_EVENT_TIME_MAPPING && event.sequence == 3u && event.event_time_us == 100000u);
+    CHECK(store.ops->read(store.ctx, 102u, &block) == CP_OK);
+    CHECK(cp_cpb2_compact_decode(block.data, block.bytes, &compact) == CP_OK);
+    CHECK(compact.header.sample_count == 1u && compact.header.first_sample_seq == 3u);
+    CHECK((compact.header.quality_flags & CP_Q_DISCONTINUITY) != 0u);
+
+    stream.channel_count = 17u;
+    stream.id = 40u;
+    memset(&config, 0, sizeof(config));
+    config.session_id = 9u; config.time_origin_us = 50u; config.stream = &stream;
+    config.samples_per_block = 1u; config.first_block_seq = 1u;
+    CHECK(cp_recorder_init(&recorder, &config, store, record_buffer, sizeof(record_buffer)) == CP_OK);
+    memset(row, 0, sizeof(row));
+    {
+        cp_frame_t frame;
+        memset(&frame, 0, sizeof(frame));
+        frame.stream_id = 40u; frame.seq = 0u; frame.event_time_us = 50u;
+        frame.period_num_us = 10000u; frame.period_den = 1u;
+        frame.dtype = CP_DTYPE_F32; frame.channel_count = 17u; frame.sample_count = 1u;
+        frame.data = row; frame.data_bytes = sizeof(row);
+        frame.lineage.input_stream_id = 2u; frame.lineage.first_seq = 8u; frame.lineage.last_seq = 8u;
+        CHECK(cp_recorder_append(&recorder, &frame) == CP_OK);
+    }
+    CHECK(store.ops->read(store.ctx, 1u, &block) == CP_OK);
+    CHECK(cp_cpb2_wide_decode(block.data, block.bytes, &wide) == CP_OK);
+    CHECK(wide.header.channel_count == 17u && wide.header.stream_id == 40u);
+    CHECK(wide.header.t0_us == 50u && wide.header.input_stream_id == 2u);
     return 0;
 }
 
@@ -311,10 +461,57 @@ static int test_pipeline(void) {
     return 0;
 }
 
+static int test_recorder_gap(void) {
+    uint8_t memory[3u * 128u];
+    uint8_t record_buffer[128];
+    cp_ram_store_t ram;
+    cp_store_t store;
+    cp_stream_desc_t stream;
+    cp_recorder_config_t config;
+    cp_recorder_t recorder;
+    cp_block_view_t block;
+    cp_cpb2_compact_view_t compact;
+    cp_cpb2_event_t event;
+    float value = 1.0f;
+    cp_frame_t frame;
+    memset(&stream, 0, sizeof(stream));
+    stream.id = 1u; stream.schema_id = 1u; stream.name = "raw";
+    stream.dtype = CP_DTYPE_F32; stream.channel_count = 1u;
+    stream.period_num_us = 10000u; stream.period_den = 1u;
+    CHECK(cp_ram_store_init(&ram, memory, sizeof(memory), 128u, 3u,
+                            CP_OVERFLOW_DROP_OLDEST) == CP_OK);
+    store.ops = &cp_ram_store_ops; store.ctx = &ram;
+    memset(&config, 0, sizeof(config));
+    config.session_id = 4u; config.stream = &stream;
+    config.samples_per_block = 1u; config.first_block_seq = 1u;
+    CHECK(cp_recorder_init(&recorder, &config, store, record_buffer, sizeof(record_buffer)) == CP_OK);
+    memset(&frame, 0, sizeof(frame));
+    frame.stream_id = 1u; frame.seq = 0u; frame.event_time_us = 0u;
+    frame.period_num_us = 10000u; frame.period_den = 1u;
+    frame.dtype = CP_DTYPE_F32; frame.channel_count = 1u; frame.sample_count = 1u;
+    frame.data = &value; frame.data_bytes = sizeof(value);
+    CHECK(cp_recorder_append(&recorder, &frame) == CP_OK);
+    frame.seq = 2u; frame.event_time_us = 20000u;
+    CHECK(cp_recorder_append(&recorder, &frame) == CP_OK);
+    CHECK(store.ops->read(store.ctx, 1u, &block) == CP_OK);
+    CHECK(cp_cpb2_compact_decode(block.data, block.bytes, &compact) == CP_OK);
+    CHECK(store.ops->read(store.ctx, 2u, &block) == CP_OK);
+    CHECK(cp_cpb2_event_decode(block.data, block.bytes, &event) == CP_OK);
+    CHECK(event.type == CP_EVENT_SEQUENCE_GAP && event.sequence == 2u && event.detail == 1);
+    CHECK(store.ops->read(store.ctx, 3u, &block) == CP_OK);
+    CHECK(cp_cpb2_compact_decode(block.data, block.bytes, &compact) == CP_OK);
+    CHECK(compact.header.first_sample_seq == 2u);
+    CHECK((compact.header.quality_flags & CP_Q_DISCONTINUITY) != 0u);
+    return 0;
+}
+
 int main(void) {
     CHECK(test_cpb1() == 0);
+    CHECK(test_cpb2_bounds() == 0);
     CHECK(test_ram_store() == 0);
     CHECK(test_recorder() == 0);
+    CHECK(test_recorder_time_and_wide() == 0);
+    CHECK(test_recorder_gap() == 0);
     CHECK(test_flash_recovery() == 0);
     CHECK(test_cobs() == 0);
     CHECK(test_batch_sender() == 0);

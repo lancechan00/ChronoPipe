@@ -1,6 +1,7 @@
 # CPB1 Binary Format
 
 This document is normative for ChronoPipe Block Format major version 1.
+New sessions use CPB2. Major version 1 remains valid and unchanged.
 
 ## Encoding rules
 

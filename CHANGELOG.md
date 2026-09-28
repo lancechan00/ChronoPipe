@@ -4,6 +4,16 @@ All notable changes will be documented in this file.
 
 The format follows Keep a Changelog and the project uses Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- CPB2, a new major block format. Hot fixed-rate DATA uses a 17-byte card.
+  SCHEMA holds the period and time origin. Time breaks and sequence gaps are
+  EVENT records. Shapes outside the compact profile use self-describing wide DATA.
+- Host inspect, export, replay, and capture read CPB2 and reconstruct sample time
+  from SCHEMA plus `CP_EVENT_TIME_MAPPING`. CPB1 files still read and write as before.
+
 ## [0.1.0] - 2026-08-07
 
 ### Added

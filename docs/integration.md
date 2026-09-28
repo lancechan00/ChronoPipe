@@ -54,9 +54,12 @@ or slot and run the graph in a bounded application task.
 ## 4. Tap streams into recorders
 
 Create one `cp_recorder_t` for each evidence stream. The recorder batches scalar rows
-up to `samples_per_block`; windows and spectra are sealed as individual blocks. It
-combines quality flags and stores the direct parent range. `cp_recorder_flush` seals a
-partial final block.
+up to `samples_per_block` and seals CPB2. Hot fixed-rate blocks use the 17-byte card.
+Set `time_origin_us` to the SCHEMA origin; sample time is
+`origin + seq * period_num_us / period_den`. A break flushes the open block, appends
+`CP_EVENT_TIME_MAPPING`, and marks the next block discontinuous. Shapes outside the
+compact profile, including spectra, are wide records that carry `t0_us`, period, and
+the direct parent range. `cp_recorder_flush` seals a partial final block.
 
 Recorders write through `cp_store_t`. Use the RAM store when data may be overwritten
 after a short retention window. Use the flash store when committed blocks must survive
@@ -65,8 +68,8 @@ alignment. The adapter owns any background erase scheduling.
 
 ## 5. Transfer without hiding loss
 
-Use COBS for a simple live byte stream. Live mode is allowed to lose frames, but CPB1
-block and source sequences make loss detectable. Use `cp_batch_sender_t` for retained
+Use COBS for a simple live byte stream. Live mode is allowed to lose frames, but block
+and source sequences make loss detectable. Use `cp_batch_sender_t` for retained
 evidence: it sends the oldest block, waits for `ack_through`, retries within policy, and
 only then releases acknowledged storage.
 
