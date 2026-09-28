@@ -45,18 +45,23 @@ and `u32` lifetime. Max in-range block is 65535 × 16 × f32 ≈ 4 MiB + 17 B.
 
 ### Next gates for this track
 
-- [ ] Decide whether bit-align-17 becomes a CPB2 minor packing or a major format.
-- [ ] Keep SESSION/SCHEMA owning session, period, and shape so those fields stay
-      out of every DATA card.
-- [ ] Size RAM/flash slots to the sealed record, not a default 4096 B page.
-- [ ] Reject out-of-range fields instead of silent truncation before any wire use.
-- [ ] Port the packing into shared C encode/decode with host and device tests.
-- [ ] Keep window/spectrum/event records on self-describing headers; only hot
-      fixed-rate streams use the compact card.
+- [x] bit-align-17 is CPB2, a new major format. CPB1 stays valid for existing files.
+- [x] SESSION/SCHEMA own session, period, and time origin. Compact DATA does not
+      repeat them. A broken formula is a `CP_EVENT_TIME_MAPPING` record.
+- [x] Callers size RAM/flash slots from `cp_cpb2_compact_record_bytes()`, not from
+      a default 4096 B page.
+- [x] Out-of-range compact fields return an error instead of being truncated.
+- [x] Shared C encode/decode and the host tools cover the compact card, wide
+      DATA, and time reconstruction.
+- [x] Window frames, spectra, and other shapes outside the compact profile use
+      wide DATA. Events stay on their own records.
+
+The compact widths (32 streams, 16 channels, 65535 samples, six quality bits)
+are the default profile. Streams that need more use wide DATA in the same CPB2
+file. Raising `CP_MAX_STREAMS` does not widen the 17-byte card.
 
 ## Later releases
 
-- Compact DATA header (bit-align-17 or successor) after the gates above.
 - Rational resampling and multiple clock domains.
 - Multi-parent lineage for sensor fusion graphs.
 - Planar payloads and optional LZ4/Zstd compression.

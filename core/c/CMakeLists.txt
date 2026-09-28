@@ -1,6 +1,7 @@
 add_library(chronopipe STATIC
   src/arena.c
   src/cpb1.c
+  src/cpb2.c
   src/graph.c
   src/recorder.c
   src/stages.c

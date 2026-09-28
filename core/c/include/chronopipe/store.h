@@ -2,6 +2,7 @@
 #define CHRONOPIPE_STORE_H
 
 #include "chronopipe/cpb1.h"
+#include "chronopipe/cpb2.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,7 +75,7 @@ typedef struct {
     uint32_t seq[CP_STORE_MAX_SLOTS];
     uint32_t length[CP_STORE_MAX_SLOTS];
     uint8_t valid[CP_STORE_MAX_SLOTS];
-    uint8_t scratch[CP_CPB1_DATA_RECORD_HEADER_BYTES];
+    uint8_t scratch[CP_CPB2_WIDE_RECORD_HEADER_BYTES];
     uint8_t *read_buffer;
     size_t read_buffer_bytes;
     cp_overflow_policy_t policy;

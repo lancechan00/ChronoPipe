@@ -37,7 +37,7 @@ static cp_status_t upload_record(void *user,
                                  size_t bytes) {
     upload_sink_t *sink = (upload_sink_t *)user;
     (void)block_seq;
-    if (cp_cpb1_validate_record(data, bytes) != CP_OK) return CP_EFORMAT;
+    if (cp_evidence_validate_record(data, bytes) != CP_OK) return CP_EFORMAT;
     ++sink->records;
     sink->bytes += bytes;
     return CP_OK;
@@ -60,8 +60,9 @@ static void configure_stream(cp_stream_desc_t *stream,
 
 int main(void) {
     static uint8_t arena_memory[16384];
-    static uint8_t ring_memory[8u * 640u];
-    static uint8_t record_buffer[640u];
+    enum { k_demo_record_bytes = CP_CPB2_COMPACT_HEADER_BYTES + 32u * 8u * 2u };
+    static uint8_t ring_memory[8u * k_demo_record_bytes];
+    static uint8_t record_buffer[k_demo_record_bytes];
     const float quant_scale[8] = {0.001f, 0.001f, 0.001f, 0.001f,
                                   4.0f, 4.0f, 4.0f, 4.0f};
     const float quant_offset[8] = {0.0f, 0.0f, 0.0f, 0.0f,
@@ -98,7 +99,7 @@ int main(void) {
     configure_stream(&streams[5], 6u, "spectrum", CP_DTYPE_F32, 40000u);
     configure_stream(&streams[6], 7u, "peak_hz", CP_DTYPE_F32, 320000u);
 
-    if (cp_ram_store_init(&ram_store, ring_memory, sizeof(ring_memory), 640u, 8u,
+    if (cp_ram_store_init(&ram_store, ring_memory, sizeof(ring_memory), k_demo_record_bytes, 8u,
                           CP_OVERFLOW_STOP) != CP_OK) {
         fputs("RAM store initialization failed\n", stderr);
         return 1;
@@ -106,6 +107,7 @@ int main(void) {
     store.ops = &cp_ram_store_ops;
     store.ctx = &ram_store;
     recorder_config.session_id = 1u;
+    recorder_config.time_origin_us = 0u;
     recorder_config.stream = &streams[1];
     recorder_config.samples_per_block = 32u;
     recorder_config.first_block_seq = 0u;
@@ -176,7 +178,7 @@ int main(void) {
     printf("last peak frequencies: %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f Hz\n",
            sink.last_peak_hz[0], sink.last_peak_hz[1], sink.last_peak_hz[2], sink.last_peak_hz[3],
            sink.last_peak_hz[4], sink.last_peak_hz[5], sink.last_peak_hz[6], sink.last_peak_hz[7]);
-    printf("recorded and acknowledged: %u CPB1 blocks, %lu bytes\n",
+    printf("recorded and acknowledged: %u CPB2 blocks, %lu bytes\n",
            uploaded.records, (unsigned long)uploaded.bytes);
     return 0;
 }

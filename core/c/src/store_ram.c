@@ -8,7 +8,7 @@ static cp_status_t ram_append(void *ctx, uint32_t block_seq, const uint8_t *data
     if (store == NULL || data == NULL || bytes == 0u || bytes > store->slot_bytes) {
         return CP_EINVAL;
     }
-    if (cp_cpb1_validate_record(data, bytes) != CP_OK) {
+    if (cp_evidence_validate_record(data, bytes) != CP_OK) {
         return CP_EFORMAT;
     }
     if (store->stopped) {
